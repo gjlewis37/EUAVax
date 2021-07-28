@@ -1,0 +1,365 @@
+%% Figure 1: Surfaces of clinical equipoise
+
+%%Constructing surfaces of equipoisee
+x = [0:0.000002:0.02 0.021:0.001:1];
+y = [0:0.000002:0.02 0.021:0.001:1];
+[AR,IFR] = meshgrid(x, y); %Initial range of AR and IFR
+
+VE1 = 0.01./(AR .* IFR); %Producing initial equipose VE
+VE2 = 0.001./(AR .* IFR);
+VE3 = 0.0001./(AR .* IFR);
+
+C1 = VE1; %Scaling colour scale
+C1(C1>1) = NaN;
+
+C2 = VE2;
+C2(C2>1) = NaN;
+
+C3 = VE3;
+C3(C3>1) = NaN;
+
+subplot(1,3,1) %Producing figure
+surf(AR, IFR, VE1, C1);
+shading interp
+zlim([0 1])
+title('SAER = 0.01')
+xlabel('P(I)')
+ylabel('IFR')
+zlabel('VE')
+caxis([0 1])
+view([45 38])
+pbaspect([1,1,1])
+
+subplot(1,3,2) 
+surf(AR, IFR, VE2, C2);
+shading interp
+zlim([0 1])
+title('SAER = 10^{-3}')
+xlabel('P(I)')
+ylabel('IFR')
+zlabel('VE')
+caxis([0 1])
+view([45 38])
+pbaspect([1,1,1])
+
+subplot(1,3,3)
+surf(AR, IFR, VE3, C3);
+shading interp
+zlim([0 1])
+title('SAER = 10^{-4}')
+xlabel('P(I)')
+ylabel('IFR')
+zlabel('VE')
+caxis([0 1])
+view([45 38])
+pbaspect([1,1,1])
+
+
+%% Figure 2: Diminishing returns to vaccine efficacy
+
+[AR2,IFR2] = meshgrid(0 : 0.0002 : 0.4, 0: 0.0001 : 0.2);
+VE4 = 0.001./(AR2.*IFR2);
+C4 = VE4;
+C4(C4>1) = NaN;
+
+
+[C,h] = contourf(AR2,IFR2,C4, [0 : 0.1 : 1])
+shading interp
+ylabel('Infection Fatality Rate (IFR)')
+xlabel('Probability of infection (P(I))')
+pbaspect([1,1,1])
+clabel(C,h,'manual','fontsize',10)
+caxis([0 1])
+cc = colorbar
+cc.Label.String = 'Vaccine Efficacy'
+
+
+%% Figure 3: EV/p(EV+) analysis 
+
+AR = 0 : 0.02 : 0.4;
+
+IFR = 0 : 0.01 : 0.2;
+
+Util = zeros(21,21);
+
+Pben = zeros(21,21);
+
+% Analysis: conservative SAER, Conservative VE
+
+UtilcScV = Util;
+
+PbencScV = Pben;
+
+for i = 1:21
+    
+    for j = 1:21
+        interU = zeros(1,10000);
+        interP = zeros(1,10000);
+        
+        for k = 1:10000
+            VE = betarnd(1,3) ;
+            if rand(1,1) < 1/3
+                VE = 0;
+            end
+            
+            pSAE = betarnd(1,301);
+                    
+                Ui = AR(i)*IFR(j)*VE - pSAE;
+            interU(k) = Ui;
+            
+            if Ui > 0
+               interP(k) = 1;
+            end
+        end
+        UtilcScV(i,j) = mean(interU,"all");
+        PbencScV(i,j) = mean(interP, "all");
+    end
+end
+
+%Optimistic VE, Optimistic SAER case
+
+UtiloSoV = Util;
+
+PbenoSoV = Pben;
+
+for i = 1:21
+    
+    for j = 1:21
+        interU = zeros(1,10000);
+        interP = zeros(1,10000);
+        
+        for k = 1:10000
+            
+            r = rand;
+            r1 = -6 + 4*r;
+            
+            Ui = AR(i)*IFR(j)*rand(1,1) - 10^r1;
+            interU(k) = Ui;
+            
+            if Ui > 0
+               interP(k) = 1; 
+            end
+        end
+        UtiloSoV(i,j) = mean(interU,"all");
+        PbenoSoV(i,j) = mean(interP, "all");
+    end
+end
+
+inc = -1:0.02:1
+
+R1 = 1 - 1./(1+exp(-(inc/0.5)))
+G1 = 1./(1+exp(-(inc/0.5)))
+B1 = [G1(1:50) R1(51:101)] 
+
+R2 = flip(0:0.01:1)
+G2 = 0:0.01:1
+B2 = [0:0.01:0.5 flip(0:0.01:0.49)]
+
+mapinv1 = [R1;G1;B1]
+mapinv2 = [R2;G2;B2]
+
+map_e = transpose(mapinv1)
+map_p = transpose(mapinv2)
+map_e(51,:) = [0 0 0]
+map_p(51,:) = [0 0 0]
+
+tiledlayout(2,2)
+
+nexttile
+[AR, IFR] = meshgrid(0: 0.02 : 0.4, 0: 0.01 : 0.2)
+C = UtilcScV;
+surf(AR, IFR, UtilcScV, C)
+shading interp
+title('Conservative VE, Conservative SAER')
+ylabel('IFR')
+xlabel('P(I)')
+zlabel('Expected Utility')
+view([0 90])
+caxis([-0.04, 0.04])
+
+nexttile
+[AR, IFR] = meshgrid(0: 0.02 : 0.4, 0: 0.01 : 0.2)
+C = UtiloSoV;
+surf(AR, IFR, UtiloSoV, C)
+shading interp
+title('Optimistic VE, Optimistic SAER')
+ylabel('IFR')
+xlabel('p(I)')
+zlabel('Expected Utility')
+view([0 90])
+caxis([-0.04, 0.04])
+colormap(map_e)
+cc = colorbar
+cc.Label.String = "Expected utility"
+
+
+nexttile
+[AR, IFR] = meshgrid(0: 0.02 : 0.4, 0: 0.01 : 0.2)
+C = PbencScV;
+surf(AR, IFR, PbencScV, C)
+shading interp
+ylabel('IFR')
+xlabel('P(I)')
+zlabel('Utility')
+view([0 90])
+caxis([0, 1])
+
+nexttile
+[AR, IFR] = meshgrid(0: 0.02 : 0.4, 0: 0.01 : 0.2)
+C = PbenoSoV;
+surf(AR, IFR, PbenoSoV, C)
+shading interp
+ylabel('IFR')
+xlabel('P(I)')
+zlabel('Utility')
+view([0 90])
+caxis([0, 1])
+colormap(map_p)
+cd = colorbar
+cd.Label.String = "Likelihood of expected benefit"
+
+%% Supplementary material: mixing opt/con estimators
+
+AR = 0 : 0.02 : 0.4;
+
+IFR = 0 : 0.01 : 0.2;
+
+Util = zeros(21,21);
+
+Pben = zeros(21,21);
+
+% Analysis: conservative SAER, Optimistic VE
+
+UtilcSoV = Util;
+
+PbencSoV = Pben;
+
+for i = 1:21
+    
+    for j = 1:21
+        interU = zeros(1,10000);
+        interP = zeros(1,10000);
+        
+        for k = 1:10000
+            VE = betarnd(1,1);
+            
+            pSAE = betarnd(1,301);
+                    
+                Ui = AR(i)*IFR(j)*VE - pSAE;
+            interU(k) = Ui;
+            
+            if Ui > 0
+               interP(k) = 1;
+            end
+        end
+        UtilcSoV(i,j) = mean(interU,"all");
+        PbencSoV(i,j) = mean(interP, "all");
+    end
+end
+
+%Conservative VE, Optimistic SAER case
+
+UtiloScV = Util;
+
+PbenoScV = Pben;
+
+for i = 1:21
+    
+    for j = 1:21
+        interU = zeros(1,10000);
+        interP = zeros(1,10000);
+        
+        for k = 1:10000
+            
+            VE = betarnd(1,3) ;
+            if rand(1,1) < 1/3
+                VE = 0;
+            end
+            
+            r = rand;
+            r1 = -6 + 4*r;
+            
+            Ui = AR(i)*IFR(j)*VE - 10^r1;
+            interU(k) = Ui;
+            
+            if Ui > 0
+               interP(k) = 1; 
+            end
+        end
+        UtiloScV(i,j) = mean(interU,"all");
+        PbenoScV(i,j) = mean(interP, "all");
+    end
+end
+
+inc = -1:0.02:1
+
+R1 = 1 - 1./(1+exp(-(inc/0.5)))
+G1 = 1./(1+exp(-(inc/0.5)))
+B1 = [G1(1:50) R1(51:101)] 
+
+R2 = flip(0:0.01:1)
+G2 = 0:0.01:1
+B2 = [0:0.01:0.5 flip(0:0.01:0.49)]
+
+mapinv1 = [R1;G1;B1]
+mapinv2 = [R2;G2;B2]
+
+map_e = transpose(mapinv1)
+map_p = transpose(mapinv2)
+map_e(51,:) = [0 0 0]
+map_p(51,:) = [0 0 0]
+
+tiledlayout(2,2)
+
+nexttile
+[AR, IFR] = meshgrid(0: 0.02 : 0.4, 0: 0.01 : 0.2)
+C = UtilcSoV;
+surf(AR, IFR, UtilcSoV, C)
+shading interp
+title('Optimistic VE, Conservative SAER')
+ylabel('IFR')
+xlabel('P(I)')
+zlabel('Expected Utility')
+view([0 90])
+caxis([-0.04, 0.04])
+
+nexttile
+[AR, IFR] = meshgrid(0: 0.02 : 0.4, 0: 0.01 : 0.2)
+C = UtiloScV;
+surf(AR, IFR, UtiloScV, C)
+shading interp
+title('Conservative VE, Optimistic SAER')
+ylabel('IFR')
+xlabel('p(I)')
+zlabel('Expected Utility')
+view([0 90])
+caxis([-0.04, 0.04])
+colormap(map_e)
+cc = colorbar
+cc.Label.String = "Expected utility"
+
+
+nexttile
+[AR, IFR] = meshgrid(0: 0.02 : 0.4, 0: 0.01 : 0.2)
+C = PbencSoV;
+surf(AR, IFR, PbencSoV, C)
+shading interp
+ylabel('IFR')
+xlabel('P(I)')
+zlabel('Utility')
+view([0 90])
+caxis([0, 1])
+
+nexttile
+[AR, IFR] = meshgrid(0: 0.02 : 0.4, 0: 0.01 : 0.2)
+C = PbenoScV;
+surf(AR, IFR, PbenoScV, C)
+shading interp
+ylabel('IFR')
+xlabel('P(I)')
+zlabel('Utility')
+view([0 90])
+caxis([0, 1])
+colormap(map_p)
+cd = colorbar
+cd.Label.String = "Likelihood of expected benefit"
